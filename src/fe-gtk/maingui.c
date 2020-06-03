@@ -3012,6 +3012,31 @@ mg_switch_tab_cb (chanview *cv, chan *ch, int tag, gpointer ud)
 static int
 mg_tabs_compare (session *a, session *b)
 {
+	int r = 0;
+	char **a_parts = g_strsplit (a->channel, "/", 2);
+	char **b_parts = g_strsplit (b->channel, "/", 2);
+
+	int i;
+	for (i = 0; i < 2; i++) {
+		if (!a_parts[i] || !b_parts[i]) {
+			goto end;
+		}
+	}
+
+	r = g_ascii_strcasecmp (a_parts[1], b_parts[1]);
+	if (r != 0) {
+		goto end;
+	}
+
+	r = g_ascii_strcasecmp (a_parts[0], b_parts[0]);
+
+end:;
+	g_strfreev (a_parts);
+	g_strfreev (b_parts);
+	if (r != 0) {
+		return r;
+	}
+
 	/* server tabs always go first */
 	if (a->type == SESS_SERVER)
 		return -1;
