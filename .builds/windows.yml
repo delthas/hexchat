@@ -1,0 +1,39 @@
+image: archlinux
+shell: true
+packages:
+  - pkgconf
+  - git
+  - python
+  - sed
+  - zip
+sources:
+  - https://git.saucisseroyale.cc/delthas/hexchat.git
+secrets:
+  - 63d7a0ac-2635-4d42-9709-efcd2cf74858 # ssh deploy key
+tasks:
+  - setup: |
+      printf '[ownstuff]\nServer = https://martchus.no-ip.biz/repo/arch/$repo/os/$arch\nSigLevel = PackageOptional\n' | sudo tee -a /etc/pacman.conf
+      sudo pacman --noconfirm -Syu mingw-w64-gcc mingw-w64-curl mingw-w64-libpng mingw-w64-meson mingw-w64-crt mingw-w64-pango mingw-w64-atk mingw-w64-cairo mingw-w64-gdk-pixbuf2 mingw-w64-glib2 gtk-update-icon-cache mingw-w64-configure mingw-w64-gcc mingw-w64-pkg-config
+      printf '[options]\nRemoteFileSigLevel = Optional\n' | sudo tee -a /etc/pacman.conf
+      git clone https://aur.archlinux.org/mingw-w64-gtk2.git
+      cd mingw-w64-gtk2
+      sed -i "s/'i686-w64-mingw32' 'x86_64-w64-mingw32'/'x86_64-w64-mingw32'/g" PKGBUILD
+      makepkg -si
+  - build: |
+      cd hexchat
+      export PKG_CONFIG_PATH=/usr/x86_64-w64-mingw32/lib/pkgconfig CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++
+      meson build -Dwith-text=false -Dwith-plugin=false -Dwith-dbus=false -Dwith-libproxy=false -Dwith-libnotify=false -Dwith-libcanberra=false -Dwith-theme-manager=false -Ddbus-service-use-appid=false -Dwith-appdata=false -Dwith-checksum=false -Dwith-exec=false -Dwith-fishlim=false -Dwith-sysinfo=false -Dwith-upd=false -Dwith-winamp=false -Dinstall-plugin-metainfo=false -Dwith-perl-legacy-api=false -Dbuildtype=debug
+      ninja -C build
+  - zip: |
+      cd hexchat
+      mkdir hexchat
+      DESTDIR=$PWD/hexchat ninja -C build install
+      cp scripts/hexchat.bat hexchat/
+      cp /usr/x86_64-w64-mingw32/bin/{libatk-1.0-0.dll,libbz2-1.dll,libcairo-2.dll,libcairo-gobject-2.dll,libepoxy-0.dll,libexpat-1.dll,libffi-6.dll,libfontconfig-1.dll,libfreetype-6.dll,libfribidi-0.dll,libgcc_s_seh-1.dll,libgdk_pixbuf-2.0-0.dll,libgdk-3-0.dll,libgio-2.0-0.dll,libglib-2.0-0.dll,libgmodule-2.0-0.dll,libgobject-2.0-0.dll,libgraphite2.dll,libgtk-3-0.dll,libharfbuzz-0.dll,libiconv-2.dll,libintl-8.dll,libjasper-4.dll,libjpeg-8.dll,liblzma-5.dll,libpango-1.0-0.dll,libpangocairo-1.0-0.dll,libpangoft2-1.0-0.dll,libpangowin32-1.0-0.dll,libpcre-1.dll,libpixman-1-0.dll,libpng16-16.dll,libstdc++-6.dll,libtiff-5.dll,libwinpthread-1.dll,zlib1.dll,libopus-0.dll,libportaudio-2.dll,libssp-0.dll,libthai-0.dll,libdatrie-1.dll,gspawn-win64-helper.exe,gspawn-win64-helper-console.exe} hexchat/
+      mkdir -p hexchat/share/glib-2.0/
+      cp -R /usr/x86_64-w64-mingw32/share/glib-2.0/schemas/ hexchat/share/glib-2.0/
+      x86_64-w64-mingw32-strip hexchat/*.dll
+      zip -r9 hexchat.zip hexchat/
+  - deploy: |
+      cd hexchat
+      scp -P 2222 -o StrictHostKeyChecking=no -q hexchat.zip user@delthas.fr:/srv/http/blog/hexchat.zip
