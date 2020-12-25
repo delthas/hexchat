@@ -1362,7 +1362,8 @@ mg_detach_tab_cb (GtkWidget *item, chan *ch)
 	if (chan_get_tag (ch) == TAG_IRC)	/* IRC tab */
 	{
 		/* userdata is session * */
-		mg_link_irctab (chan_get_userdata (ch), 1);
+		session *s = chan_get_userdata (ch);
+		server_sendpart (s->server, s->channel, "detach");
 		return;
 	}
 
